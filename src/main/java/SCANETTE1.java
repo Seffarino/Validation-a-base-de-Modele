@@ -1,10 +1,13 @@
 import nz.ac.waikato.modeljunit.Action;
 import nz.ac.waikato.modeljunit.FsmModel;
+import vbm.projet.ArticleDB;
 
 public class SCANETTE1 implements FsmModel {
 
-    private class Panier{
 
+
+    private class Panier{
+        ArticleDB ArticleDBvide = new ArticleDB();
     }
     @Override
     public Object getState() {
@@ -19,7 +22,10 @@ public class SCANETTE1 implements FsmModel {
 
     @Action
     public void AuthentificationOK(){
-        state = "Authentifie";
+        Panier a = new Panier();
+        if(a.ArticleDBvide.getTailleDB() == 0) {
+            state = "Authentifie";
+        }
     }
 
     public boolean AuthentificationOKGuard(){
@@ -28,7 +34,10 @@ public class SCANETTE1 implements FsmModel {
 
     @Action
     public void AuthentificationKO(){
-        state = "En attente";
+        Panier a = new Panier();
+        if(a.ArticleDBvide.getTailleDB() != 0) {
+            state = "En attente";
+        }
     }
 
     public boolean AuthentificationKOGuard(){

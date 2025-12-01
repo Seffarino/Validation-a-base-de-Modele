@@ -1,0 +1,23 @@
+digraph SCANETTE1
+{
+  "En attente" -> "En attente"  [label="AuthentificationKO"];
+  "En attente" -> Authentifie  [label="AuthentificationOK"];
+  Authentifie -> Authentifie  [label="AjouterArticleOK"];
+  Authentifie -> Authentifie  [label="SupprimerArticleKO"];
+  Authentifie -> Authentifie  [label="AjouterArticleKO"];
+  Authentifie -> Authentifie  [label="SupprimerArticleOK"];
+  Authentifie -> Caisse  [label="TransfererCaisse"];
+  Caisse -> Paiement  [label="ArticlesPasDefaillantPasAleatoire"];
+  Caisse -> "Verification article"  [label="ArticlesDefaillant"];
+  "Verification article" -> Paiement  [label="PasVerifAleatoire"];
+  Paiement -> Espece  [label="Espece"];
+  Paiement -> CB  [label="CB"];
+  "Verification article" -> Validation  [label="VerifAleatoire"];
+  Validation -> "Reverification totale"  [label="ValidationKO"];
+  "Reverification totale" -> Caisse  [label="ReverificationKO"];
+  Validation -> Paiement  [label="ValidationOk"];
+  Validation -> Validation  [label="OuvertureSession"];
+  Validation -> Validation  [label="FermetureSession"];
+  Validation -> Caisse  [label="FermetureSessionKO"];
+  "Reverification totale" -> Paiement  [label="ReverificationOk"];
+}
