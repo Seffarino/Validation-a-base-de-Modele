@@ -15,8 +15,8 @@ public class Launcher {
         tester.addListener(testMaker);
         tester.buildGraph().printGraphDot("./graphDAB1.dot");
         tester.generate(20);
-        File file = new File("./tests.java");
-        testMaker.exportTest("test",file);
+        File outfile = new File("src/test/java/ScanetteTest.java");
+        testMaker.exportTest("src/test",outfile);
 
     }
 }
