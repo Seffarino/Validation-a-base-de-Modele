@@ -15,10 +15,7 @@ digraph SCANETTE1
   Validation -> Paiement  [label="FermetureSession"];
   Paiement -> CB  [label="CB"];
   Paiement -> Espece  [label="Espece"];
-  Authentifie -> "Verification article"  [label="TransfererCaisse"];
   Paiement -> Paiement  [label="OuvertureSession"];
   Paiement -> Validation  [label="OuvertureSession"];
-  "Verification article" -> Paiement  [label="PasVerifAleatoire"];
   "Reverification totale" -> Paiement  [label="ReverificationOk"];
-  "Verification article" -> Validation  [label="VerifAleatoire"];
 }

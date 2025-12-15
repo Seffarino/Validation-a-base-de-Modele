@@ -1,27 +1,46 @@
 package scanette;
-
 public class ScanetteAdapter {
-    public void setup() {}
-    public void teardown() {}
 
-    public void AuthentificationOK() {}
-    public void AuthentificationKO() {}
-    public void AjouterArticleOK() {}
-    public void AjouterArticleKO() {}
-    public void SupprimerArticleOK() {}
-    public void SupprimerArticleKO() {}
-    public void TransfererCaisse() {}
-    public void ArticlesDefaillant() {}
-    public void ArticlesPasDefaillantPasAleatoire() {}
-    public void VerifAleatoire() {}
-    public void PasVerifAleatoire() {}
-    public void ValidationOk() {}
-    public void ValidationKO() {}
-    public void ReverificationOk() {}
-    public void ReverificationKO() {}
-    public void OuvertureSession() {}
-    public void FermetureSession() {}
-    public void FermetureSessionKO() {}
-    public void CB() {}
-    public void Espece() {}
+    private SCANETTE1 model;
+
+    public void setup() {
+        model = new SCANETTE1();
+        model.reset(true);
+    }
+
+    public void teardown() {
+        // rien à faire
+    }
+
+    public void AuthentificationOK() { model.AuthentificationOK(); }
+    public void AuthentificationKO() { model.AuthentificationKO(); }
+
+    public void AjouterArticleOK() { model.AjouterArticleOK(); }
+    public void AjouterArticleKO() { model.AjouterArticleKO(); }
+
+    public void SupprimerArticleOK() { model.SupprimerArticleOK(); }
+    public void SupprimerArticleKO() { model.SupprimerArticleKO(); }
+
+    public void TransfererCaisse() { model.TransfererCaisse(); }
+
+    public void ArticlesDefaillant() { model.ArticlesDefaillant(); }
+    public void ArticlesPasDefaillantPasAleatoire() {
+        model.ArticlesPasDefaillantPasAleatoire();
+    }
+
+    public void VerifAleatoire() { model.VerifAleatoire(); }
+    public void PasVerifAleatoire() { model.PasVerifAleatoire(); }
+
+    public void ValidationOk() { model.ValidationOk(); }
+    public void ValidationKO() { model.ValidationKO(); }
+
+    public void ReverificationOk() { model.ReverificationOk(); }
+    public void ReverificationKO() { model.ReverificationKO(); }
+
+    public void OuvertureSession() { model.OuvertureSession(); }
+    public void FermetureSession() { model.FermetureSession(); }
+    public void FermetureSessionKO() { model.FermetureSessionKO(); }
+
+    public void CB() { model.CB(); }
+    public void Espece() { model.Espece(); }
 }
