@@ -1,3 +1,5 @@
+package scanette;
+
 import nz.ac.waikato.modeljunit.Action;
 import nz.ac.waikato.modeljunit.FsmModel;
 import vbm.projet.ArticleDB;
@@ -9,6 +11,10 @@ import java.io.File;
 public class SCANETTE1 implements FsmModel {
 
     String state = "En attente";
+
+
+    private boolean sessionOuverte = false;
+
 
     private ArticleDB db;
     private Scanette scanette;
@@ -38,8 +44,10 @@ public class SCANETTE1 implements FsmModel {
     @Override
     public void reset(boolean b) {
         state = "En attente";
+        sessionOuverte = false;
         init();
     }
+
 
 
     @Action
@@ -147,13 +155,15 @@ public class SCANETTE1 implements FsmModel {
 
     @Action
     public void ArticlesDefaillant() {
-        state = "Verification article";
+        state = "AttenteCaissier";
     }
+
     public boolean ArticlesDefaillantGuard() {
         return state.equals("Caisse")
                 && (scanette.getArticles().isEmpty()
                 || !scanette.getReferencesInconnues().isEmpty());
     }
+
 
     @Action
     public void VerifAleatoire(){ state = "Validation"; }
@@ -208,19 +218,26 @@ public class SCANETTE1 implements FsmModel {
     public void OuvertureSession() {
         int ret = caisse.ouvrirSession();
         if (ret == 0) {
+            sessionOuverte = true;
             state = "Validation";
         }
     }
+
     public boolean OuvertureSessionGuard() {
-        return state.equals("Validation");
+        return !sessionOuverte &&
+                (state.equals("Paiement") || state.equals("AttenteCaissier"));
     }
+
+
     @Action
     public void FermetureSession() {
         int ret = caisse.fermerSession();
         if (ret == 0) {
-            state = "Validation";
+            sessionOuverte = false;
+            state = "Paiement";
         }
     }
+
     public boolean FermetureSessionGuard() {
         return state.equals("Validation");
     }
@@ -228,6 +245,7 @@ public class SCANETTE1 implements FsmModel {
     public void FermetureSessionKO() {
         state = "Caisse";
     }
+
     public boolean FermetureSessionKOGuard() {
         return state.equals("Validation");
     }

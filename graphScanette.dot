@@ -14,11 +14,11 @@ digraph SCANETTE1
   "Reverification totale" -> Caisse  [label="ReverificationKO"];
   Validation -> Paiement  [label="FermetureSession"];
   Paiement -> CB  [label="CB"];
-  Authentifie -> "Verification article"  [label="TransfererCaisse"];
-  "Verification article" -> Paiement  [label="PasVerifAleatoire"];
   Paiement -> Espece  [label="Espece"];
+  Authentifie -> "Verification article"  [label="TransfererCaisse"];
   Paiement -> Paiement  [label="OuvertureSession"];
   Paiement -> Validation  [label="OuvertureSession"];
+  "Verification article" -> Paiement  [label="PasVerifAleatoire"];
   "Reverification totale" -> Paiement  [label="ReverificationOk"];
   "Verification article" -> Validation  [label="VerifAleatoire"];
 }
