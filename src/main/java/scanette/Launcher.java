@@ -1,9 +1,6 @@
 package scanette;
 
-import nz.ac.waikato.modeljunit.FsmModel;
-import nz.ac.waikato.modeljunit.RandomTester;
-import nz.ac.waikato.modeljunit.Tester;
-import nz.ac.waikato.modeljunit.VerboseListener;
+import nz.ac.waikato.modeljunit.*;
 import nz.ac.waikato.modeljunit.coverage.ActionCoverage;
 import nz.ac.waikato.modeljunit.coverage.StateCoverage;
 import nz.ac.waikato.modeljunit.coverage.TransitionCoverage;
@@ -15,35 +12,40 @@ public class Launcher {
     public static void main(String[] args) throws IOException {
 
         FsmModel model = new SCANETTE1();
-        Tester tester = new RandomTester(model);
+        Tester tester = new GreedyTester(model);
 
         // Traces (optionnel)
         tester.addListener(new VerboseListener());
-
+        tester.addCoverageMetric(new TransitionCoverage());
+        tester.addCoverageMetric(new ActionCoverage());
+        tester.addCoverageMetric(new StateCoverage() {
+            @Override
+            public String getName() {
+                return "state coverage";
+            }
+        });
         // Export JUnit
         JUnitExporter exporter = new JUnitExporter();
         tester.addListener(exporter);
 
         // "Requirement" coverage basé sur produits.csv (version adaptée ci-dessus)
         RequirementCoverage reqCov = new RequirementCoverage(
-                new File("src/main/resources/csv/produits.csv")
-        );
-        tester.addListener(reqCov);
+                ResourceUtils.loadCsvFromResources("csv/coverage.csv")
 
-        // Couverture structurelle
-        tester.addCoverageMetric(new TransitionCoverage());
-        tester.addCoverageMetric(new ActionCoverage());
-        tester.addCoverageMetric(new StateCoverage());
+        );
+        tester.addCoverageMetric(reqCov);
+
+
 
         // Graphe
-        tester.buildGraph().printGraphDot("./graphScanette.dot");
+        tester.buildGraph().printGraphDot("./guetarni-seffar/target/graphScanette.dot");
 
         // Génération
-        tester.generate(20);
+        tester.generate(10000);
 
         // Export après génération
         exporter.exportToFile(
-                new File("src/test/java/scanette/ScanetteGeneratedTests.java"),
+                new File("./guetarni-seffar/src/test/java/scanette/ScanetteGeneratedTests.java"),
                 "scanette"
         );
 

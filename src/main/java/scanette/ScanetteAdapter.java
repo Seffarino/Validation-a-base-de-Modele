@@ -1,46 +1,137 @@
 package scanette;
+
+import static org.junit.Assert.*;
+
+import java.io.File;
+import java.util.Iterator;
+
+import vbm.projet.*;
+
 public class ScanetteAdapter {
 
-    private SCANETTE1 model;
+    private ArticleDB db;
+    private Scanette scanette;
+    private Caisse caisse;
 
+    private long eanConnu  = 3046920010856L;
+    private long eanInconnu = 9999999999999L;
+    private long eanNonPresent = 8718309259938L;
     public void setup() {
-        model = new SCANETTE1();
-        model.reset(true);
+        db = new ArticleDB();
+        try {
+            db.init(new File("src/main/resources/csv/produits.csv"));
+        } catch (FileFormatException e) {
+            throw new RuntimeException(e);
+        }
+
+        scanette = new Scanette(db);
+        caisse = new Caisse(db);
+
+        caisse.changerProbabiliteRelecture(0.0);
+
     }
 
     public void teardown() {
-        // rien à faire
+        scanette.abandon();
+        caisse.abandon();
     }
 
-    public void AuthentificationOK() { model.AuthentificationOK(); }
-    public void AuthentificationKO() { model.AuthentificationKO(); }
-
-    public void AjouterArticleOK() { model.AjouterArticleOK(); }
-    public void AjouterArticleKO() { model.AjouterArticleKO(); }
-
-    public void SupprimerArticleOK() { model.SupprimerArticleOK(); }
-    public void SupprimerArticleKO() { model.SupprimerArticleKO(); }
-
-    public void TransfererCaisse() { model.TransfererCaisse(); }
-
-    public void ArticlesDefaillant() { model.ArticlesDefaillant(); }
-    public void ArticlesPasDefaillantPasAleatoire() {
-        model.ArticlesPasDefaillantPasAleatoire();
+    public void demarrerCoursesOk() {
+        assertEquals(0, scanette.debloquer());
     }
 
-    public void VerifAleatoire() { model.VerifAleatoire(); }
-    public void PasVerifAleatoire() { model.PasVerifAleatoire(); }
 
-    public void ValidationOk() { model.ValidationOk(); }
-    public void ValidationKO() { model.ValidationKO(); }
+    public void scannerConnu() {
+        assertEquals(0, scanette.scanner(eanConnu));
+    }
 
-    public void ReverificationOk() { model.ReverificationOk(); }
-    public void ReverificationKO() { model.ReverificationKO(); }
+    public void scannerInconnu() {
+        assertEquals(-2, scanette.scanner(eanInconnu));
+    }
 
-    public void OuvertureSession() { model.OuvertureSession(); }
-    public void FermetureSession() { model.FermetureSession(); }
-    public void FermetureSessionKO() { model.FermetureSessionKO(); }
+    public void retirerConnuOk() {
+        assertEquals(0, scanette.supprimer(eanConnu));
+    }
 
-    public void CB() { model.CB(); }
-    public void Espece() { model.Espece(); }
+    public void retirerConnuKo() {
+        assertEquals(-2, scanette.supprimer(eanConnu));
+    }
+
+    public void envoyerCaisseVersPaiement() {
+        caisse.changerProbabiliteRelecture(0.0);
+        assertEquals(0, scanette.transmission(caisse));
+    }
+
+    public void suspectOuInconnu() {
+        caisse.changerProbabiliteRelecture(0.0);
+        assertEquals(0, scanette.transmission(caisse));
+    }
+
+    public void envoyerCaisseDemandeRelecture() {
+        caisse.changerProbabiliteRelecture(1.0);
+        assertEquals(1, scanette.transmission(caisse));
+    }
+
+    public void relectureScanAttendu() {
+        assertEquals(0, scanette.scanner(eanConnu));
+    }
+
+    public void relectureEchec() {
+        scanette.abandon();
+    }
+
+    public void relectureOkTerminee() {
+        caisse.changerProbabiliteRelecture(0.0);
+        assertEquals(0, scanette.transmission(caisse));
+    }
+
+    public void ouvrirSessionOk() {
+        assertEquals(0, caisse.ouvrirSession());
+    }
+
+    public void ouvrirSessionKo() {
+        assertEquals(-1, caisse.ouvrirSession());
+    }
+
+    public void caissierAjouteConnu() {
+        assertEquals(0, caisse.scanner(eanConnu));
+    }
+
+    public void caissierRetireConnuOk() {
+        assertEquals(0, caisse.supprimer(eanConnu));
+    }
+
+    public void caissierRetireConnuKo() {
+        assertEquals(-2, caisse.supprimer(eanConnu));
+    }
+
+    public void fermerSessionOkVersPaiement() {
+        assertEquals(0, caisse.fermerSession());
+    }
+
+    public void fermerSuspect() {
+        assertEquals(0, caisse.fermerSession());
+    }
+
+    public void fermerSessionKo() {
+        assertEquals(-1, caisse.fermerSession());
+    }
+
+    public void payerOk() {
+        assertTrue(caisse.payer(1000.0) >= 0);
+    }
+
+    public void payerKo() {
+        assertTrue(caisse.payer(0.0) < 0);
+    }
+
+    public void abandonner() {
+        scanette.abandon();
+        caisse.abandon();
+    }
+
+    public void terminer() {
+        scanette.abandon();
+        caisse.abandon();
+    }
 }

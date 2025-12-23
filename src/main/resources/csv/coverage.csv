@@ -1,0 +1,8 @@
+REQ001,La scanette doit etre debloquee pour commencer des courses,ATTENTE;demarrerCoursesOk;COURSES
+REQ002,Le client peut scanner un article connu pendant les courses,COURSES;scannerConnu;COURSES
+REQ003,Le client peut scanner un article inconnu pendant les courses,COURSES;scannerInconnu;COURSES
+REQ004,Le client peut retirer un article connu de son panier,COURSES;retirerConnuOk;COURSES
+REQ005,La suppression dun article inexistant ne modifie pas le panier,COURSES;retirerConnuKo;COURSES
+REQ006,Une relecture reussie permet de passer au paiement,RELECTURE;relectureOkTerminee;ATT_PAIEMENT
+REQ007,Si une fraude est detectee pendant la relecture alors la relecture echoue et la transaction est abandonnee,ATTENTE;demarrerCoursesOk;COURSES,COURSES;scannerConnu;COURSES,COURSES;envoyerCaisseDemandeRelecture;RELECTURE,RELECTURE;relectureScanAttendu;RELECTURE,RELECTURE;relectureEchec;RELECTURE_KO,RELECTURE_KO;abandonner;ATTENTE
+REQ008,Si le panier est suspect alors la caisse demande un controle caissier avant paiement,COURSES;suspectOuInconnu;ATT_CAISSIER,ATT_CAISSIER;ouvrirSessionOk;SESSION_CAISSIER

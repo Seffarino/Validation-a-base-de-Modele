@@ -8,75 +8,93 @@ import nz.ac.waikato.modeljunit.Transition;
 import nz.ac.waikato.modeljunit.coverage.CoverageMetric;
 
 import java.io.*;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
- * "Requirement" coverage derived from produits.csv.
+ * Requirements coverage based on requirements.csv:
+ * REQxxx,Description,STATE;event;STATE,STATE;event;STATE,...
  *
- * Each line (EAN, prix, nom) is considered a requirement: the product exists in DB
- * and should be scannable at least once during the test generation.
- *
- * Covered if we observe at least one transition with action "AjouterArticleOK".
- *
- * NOTE: this metric does NOT distinguish which EAN was scanned, because Transition
- * only exposes the action name, not the parameters. For per-EAN coverage, you'd
- * need to log the scanned EAN in the adapter/model.
+ * A requirement is covered if at least one of its listed transitions is observed.
  */
 public class RequirementCoverage implements CoverageMetric {
 
     private Model model;
 
-    private final Map<String, String> reqDescriptions = new HashMap<>();
-    private final Map<Object, Integer> reqCount = new HashMap<>();
+    private final Map<String, String> reqDescriptions = new LinkedHashMap<>();
 
-    private static final String DELIMITER = ",";
+    private final Map<String, Set<TransitionKey>> reqTransitions = new LinkedHashMap<>();
 
-    // Action that indicates "scan of an existing product succeeded"
-    private static final String COVERING_ACTION = "AjouterArticleOK";
+    private final Map<Object, Integer> reqCount = new LinkedHashMap<>();
 
-    public RequirementCoverage(File produitsCsv) throws IOException {
-        try (BufferedReader br = new BufferedReader(new FileReader(produitsCsv))) {
+    private static final String CSV_DELIM = ",";
+
+     public RequirementCoverage(File requirementsCsv) throws IOException {
+        load(requirementsCsv);
+        clear();
+    }
+
+    private void load(File f) throws IOException {
+        try (BufferedReader br = new BufferedReader(new FileReader(f))) {
             String line;
             while ((line = br.readLine()) != null) {
                 line = line.trim();
                 if (line.isEmpty() || line.startsWith("#")) continue;
 
-                String[] values = line.split(DELIMITER, -1);
-                if (values.length < 3) continue;
+                // split only first 2 commas: REQ, desc, transitions...
+                String[] parts = splitFirstTwoCommas(line);
+                if (parts.length < 2) continue;
 
-                String ean = values[0].trim();
-                String prix = values[1].trim();
-                String nom = values[2].trim();
-
-                // Define a "requirement id" per product
-                String reqId = "PROD_" + ean;
-                String desc = "Produit en base: EAN=" + ean + ", prix=" + prix + ", nom=" + nom;
+                String reqId = parts[0].trim();
+                String desc = parts[1].trim();
+                String transitionsPart = (parts.length >= 3) ? parts[2].trim() : "";
 
                 reqDescriptions.put(reqId, desc);
+
+                Set<TransitionKey> keys = new LinkedHashSet<>();
+                if (!transitionsPart.isEmpty()) {
+                    // transitions are comma-separated, each is "SRC;EVENT;DST"
+                    String[] trans = transitionsPart.split(CSV_DELIM);
+                    for (String t : trans) {
+                        TransitionKey key = TransitionKey.parse(t.trim());
+                        if (key != null) keys.add(key);
+                    }
+                }
+                reqTransitions.put(reqId, keys);
                 reqCount.put(reqId, 0);
             }
         }
     }
 
+    // Helper: "a,b,c,d" -> [a, b, "c,d"] with only first two commas
+    private static String[] splitFirstTwoCommas(String s) {
+        int c1 = s.indexOf(',');
+        if (c1 < 0) return new String[]{s};
+        int c2 = s.indexOf(',', c1 + 1);
+        if (c2 < 0) return new String[]{s.substring(0, c1), s.substring(c1 + 1)};
+        return new String[]{s.substring(0, c1), s.substring(c1 + 1, c2), s.substring(c2 + 1)};
+    }
+
+    @Override
+    public String getName() {
+        return "Requirements coverage (requirements.csv)";
+    }
+
     @Override
     public String getDescription() {
-        return "Measures 'product requirements' coverage derived from produits.csv";
+        return "Covers a requirement if any listed (src;event;dst) transition is observed.";
     }
 
     @Override
     public void clear() {
-        for (Object k : reqCount.keySet()) {
-            reqCount.put(k, 0);
-        }
+        for (Object k : reqCount.keySet()) reqCount.put(k, 0);
     }
 
     @Override
     public int getCoverage() {
         int covered = 0;
-        for (String k : reqDescriptions.keySet()) {
+        for (Object k : reqCount.keySet()) {
             Integer c = reqCount.get(k);
-            covered += (c != null && c > 0) ? 1 : 0;
+            if (c != null && c > 0) covered++;
         }
         return covered;
     }
@@ -97,14 +115,13 @@ public class RequirementCoverage implements CoverageMetric {
         return reqCount;
     }
 
-    @Override
-    public void setGraph(InspectableGraph inspectableGraph, Map<Object, Vertex> map) {
-        // not used
+    public Map<String, String> getRequirementDescriptions() {
+        return reqDescriptions;
     }
 
     @Override
-    public String getName() {
-        return "Product coverage (from produits.csv)";
+    public void setGraph(InspectableGraph inspectableGraph, Map<Object, Vertex> map) {
+        // not used
     }
 
     @Override
@@ -117,39 +134,27 @@ public class RequirementCoverage implements CoverageMetric {
         this.model = model;
     }
 
-    @Override
-    public void doneReset(String reason, boolean testing) {
-        // nothing
-    }
+    @Override public void doneReset(String reason, boolean testing) {}
+    @Override public void doneGuard(Object state, int action, boolean enabled, int value) {}
+    @Override public void startAction(Object state, int action, String name) {}
+    @Override public void failure(TestFailureException e) {}
 
     @Override
-    public void doneGuard(Object o, int i, boolean b, int i1) {
-        // nothing
-    }
+    public void doneTransition(int actionIndex, Transition t) {
+        // Build the observed transition key
+        TransitionKey observed = TransitionKey.from(t);
+        if (observed == null) return;
 
-    @Override
-    public void startAction(Object o, int i, String s) {
-        // nothing
-    }
+        // Mark requirement covered if observed matches any of its transitions
+        for (String reqId : reqTransitions.keySet()) {
+            Set<TransitionKey> expected = reqTransitions.get(reqId);
+            if (expected == null || expected.isEmpty()) continue;
 
-    @Override
-    public void doneTransition(int action, Transition t) {
-        // When we see AjouterArticleOK at least once, we mark ALL products as "covered once".
-        // This is the best we can do using only Transition info (no EAN parameter).
-        // If you want true per-EAN coverage, we need adapter/model instrumentation.
-        String act = String.valueOf(t.getAction());
-        if (COVERING_ACTION.equals(act)) {
-            for (Object reqId : reqCount.keySet()) {
-                if (reqCount.get(reqId) == 0) {
-                    reqCount.put(reqId, 1);
-                }
+            if (expected.contains(observed)) {
+                // cover once (0->1). If you want multiple hits, replace by ++
+                if (reqCount.get(reqId) == 0) reqCount.put(reqId, 1);
             }
         }
-    }
-
-    @Override
-    public void failure(TestFailureException e) {
-        // nothing
     }
 
     @Override
@@ -157,7 +162,57 @@ public class RequirementCoverage implements CoverageMetric {
         return getCoverage() + "/" + getMaximum();
     }
 
-    public Map<String, String> getRequirementDescriptions() {
-        return reqDescriptions;
+    /** Transition signature: src;event;dst */
+    private static final class TransitionKey {
+        final String src;
+        final String event;
+        final String dst;
+
+        private TransitionKey(String src, String event, String dst) {
+            this.src = normalize(src);
+            this.event = normalize(event);
+            this.dst = normalize(dst);
+        }
+
+        static TransitionKey parse(String s) {
+            if (s == null || s.isEmpty()) return null;
+            String[] p = s.split(";", -1);
+            if (p.length != 3) return null;
+            return new TransitionKey(p[0], p[1], p[2]);
+        }
+
+        static TransitionKey from(Transition t) {
+            try {
+                // Most ModelJUnit versions have these getters
+                Object start = t.getStartState();
+                Object end = t.getEndState();
+                Object act = t.getAction();
+                return new TransitionKey(
+                        String.valueOf(start),
+                        String.valueOf(act),
+                        String.valueOf(end)
+                );
+            } catch (Throwable ignored) {
+                return null;
+            }
+        }
+
+        private static String normalize(String s) {
+            return s == null ? "" : s.trim();
+        }
+
+        @Override public boolean equals(Object o) {
+            if (!(o instanceof TransitionKey)) return false;
+            TransitionKey other = (TransitionKey) o;
+            return src.equals(other.src) && event.equals(other.event) && dst.equals(other.dst);
+        }
+
+        @Override public int hashCode() {
+            return Objects.hash(src, event, dst);
+        }
+
+        @Override public String toString() {
+            return src + ";" + event + ";" + dst;
+        }
     }
 }

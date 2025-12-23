@@ -2,252 +2,283 @@ package scanette;
 
 import nz.ac.waikato.modeljunit.Action;
 import nz.ac.waikato.modeljunit.FsmModel;
-import vbm.projet.ArticleDB;
-import vbm.projet.Caisse;
-import vbm.projet.Scanette;
-
-import java.io.File;
 
 public class SCANETTE1 implements FsmModel {
 
-    String state = "En attente";
+    enum S {
+        ATTENTE,
+        COURSES,
+        RELECTURE,
+        ATT_CAISSIER,
+        SESSION_CAISSIER,
+        ATT_PAIEMENT,
+        RELECTURE_ECHEC,
+        FIN
+    }
 
+    private S state = S.ATTENTE;
 
     private boolean sessionOuverte = false;
 
+    private int qteScanee = 0;
+    private int qteConnue = 0;
+    private boolean refsInconnues = false;
+    private boolean abandon = false;
 
-    private ArticleDB db;
-    private Scanette scanette;
-    private Caisse caisse;
-
-    private static final long EAN_EXISTANT = 5410188006711L;
-    private static final long EAN_INEXISTANT = 1111111111111L;
-
-    public SCANETTE1() {
-        init();
-    }
-
-    private void init() {
-        db = new ArticleDB();
-        try {
-            db.init(new File("src/main/resources/csv/produits.csv"));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        scanette = new Scanette(db);
-        caisse = new Caisse(db);
-    }
+    private int qteCaisse = 0;
 
     @Override
-    public Object getState() { return state; }
+    public Object getState() {
+        return state;
+    }
 
     @Override
     public void reset(boolean b) {
-        state = "En attente";
+        state = S.ATTENTE;
         sessionOuverte = false;
-        init();
-    }
-
-
-
-    @Action
-    public void AuthentificationOK() {
-        int ret = scanette.debloquer();
-
-        if (ret == 0) {      // succès
-            state = "Authentifie";
-        }
-    }
-
-    public boolean AuthentificationOKGuard() {
-        return state.equals("En attente");
+        qteScanee = 0;
+        qteConnue = 0;
+        refsInconnues = false;
+        qteCaisse = 0;
+        abandon = false;
     }
 
     @Action
-    public void AuthentificationKO() {
-        state = "En attente";
+    public void demarrerCoursesOk() {
+        state = S.COURSES;
     }
 
-    public boolean AuthentificationKOGuard() {
-        return state.equals("En attente");
-    }
-    @Action
-    public void AjouterArticleOK() {
-        int ret = scanette.scanner(EAN_EXISTANT);
-        if (ret == 0) {
-            state = "Authentifie";
-        }
-    }
-
-    public boolean AjouterArticleOKGuard() {
-        return state.equals("Authentifie")
-                && db.getArticle(EAN_EXISTANT) != null;
-    }
-
-    @Action
-    public void AjouterArticleKO() {
-        int ret = scanette.scanner(EAN_INEXISTANT);
-        if (ret == 0) {
-            state = "Authentifie";
-        }
-    }
-
-    public boolean AjouterArticleKOGuard() {
-        return state.equals("Authentifie")
-                && db.getArticle(EAN_INEXISTANT) == null;
-    }
-
-
-
-    @Action
-    public void SupprimerArticleOK() {
-        int ret = scanette.supprimer(EAN_EXISTANT);
-        if (ret == 0) {
-            state = "Authentifie";
-        }
-    }
-
-    public boolean SupprimerArticleOKGuard() {
-        return state.equals("Authentifie")
-                && db.getArticle(EAN_EXISTANT) != null
-                && scanette.quantite(EAN_EXISTANT) > 0;
-    }
-
-    @Action
-    public void SupprimerArticleKO() {
-        int ret = scanette.supprimer(EAN_EXISTANT);
-        if (ret == 0) {
-            state = "Authentifie";
-        }
-    }
-
-    public boolean SupprimerArticleKOGuard() {
-        return state.equals("Authentifie")
-                && db.getArticle(EAN_EXISTANT) != null
-                && scanette.quantite(EAN_EXISTANT) == 0;
+    public boolean demarrerCoursesOkGuard() {
+        return state == S.ATTENTE;
     }
 
 
     @Action
-    public void TransfererCaisse() {
-        int ret = scanette.transmission(caisse);
-        if (ret == 1) {
-            state = "Verification article";
-        }
-        else if (ret == 0) {
-            state = "Caisse";
-        }
-    }
-    public boolean TransfererCaisseGuard() {
-        return state.equals("Authentifie");
+    public void scannerConnu() {
+        qteConnue++;
+        state = S.COURSES;
     }
 
-
-    @Action
-    public void ArticlesPasDefaillantPasAleatoire() {
-        state = "Paiement";
-    }
-    public boolean ArticlesPasDefaillantPasAleatoireGuard() {
-        return state.equals("Caisse")
-                && !scanette.getArticles().isEmpty()
-                && scanette.getReferencesInconnues().isEmpty();
+    public boolean scannerConnuGuard() {
+        return state == S.COURSES;
     }
 
     @Action
-    public void ArticlesDefaillant() {
-        state = "AttenteCaissier";
+    public void scannerInconnu() {
+        refsInconnues = true;
+        state = S.COURSES;
     }
 
-    public boolean ArticlesDefaillantGuard() {
-        return state.equals("Caisse")
-                && (scanette.getArticles().isEmpty()
-                || !scanette.getReferencesInconnues().isEmpty());
-    }
-
-
-    @Action
-    public void VerifAleatoire(){ state = "Validation"; }
-
-    public boolean VerifAleatoireGuard(){ return state.equals("Verification article"); }
-
-    @Action
-    public void PasVerifAleatoire(){ state = "Paiement"; }
-
-    public boolean PasVerifAleatoireGuard(){ return state.equals("Verification article"); }
-
-    @Action
-    public void ValidationOk() {
-        state = "Paiement";
-    }
-
-    public boolean ValidationOkGuard() {
-        return state.equals("Validation")
-                && scanette.relectureEffectuee();
+    public boolean scannerInconnuGuard() {
+        return state == S.COURSES;
     }
 
     @Action
-    public void ValidationKO() {
-        state = "Reverification totale";
+    public void retirerConnuOk() {
+        if (qteConnue > 0) qteConnue--;
+        state = S.COURSES;
     }
-    public boolean ValidationKOGuard() {
-        return state.equals("Validation")
-                && !scanette.relectureEffectuee();
+
+    public boolean retirerConnuOkGuard() {
+        return state == S.COURSES && qteConnue > 0;
     }
 
     @Action
-    public void CB(){ state = "CB"; }
-
-    public boolean CBGuard(){ return state.equals("Paiement"); }
-
-    @Action
-    public void Espece(){ state = "Espece"; }
-
-    public boolean EspeceGuard(){ return state.equals("Paiement"); }
-
-    @Action
-    public void ReverificationOk(){ state = "Paiement"; }
-
-    public boolean ReverificationOkGuard(){ return state.equals("Reverification totale"); }
-
-    @Action
-    public void ReverificationKO(){ state = "Caisse"; }
-
-    public boolean ReverificationKOGuard(){ return state.equals("Reverification totale"); }
-
-    @Action
-    public void OuvertureSession() {
-        int ret = caisse.ouvrirSession();
-        if (ret == 0) {
-            sessionOuverte = true;
-            state = "Validation";
-        }
+    public void retirerConnuKo() {
+        state = S.COURSES;
     }
 
-    public boolean OuvertureSessionGuard() {
-        return !sessionOuverte &&
-                (state.equals("Paiement") || state.equals("AttenteCaissier"));
+    public boolean retirerConnuKoGuard() {
+        return state == S.COURSES && qteConnue == 0;
     }
-
 
     @Action
-    public void FermetureSession() {
-        int ret = caisse.fermerSession();
-        if (ret == 0) {
-            sessionOuverte = false;
-            state = "Paiement";
-        }
+    public void envoyerCaisseDemandeRelecture() {
+        state = S.RELECTURE;
     }
 
-    public boolean FermetureSessionGuard() {
-        return state.equals("Validation");
+    public boolean envoyerCaisseDemandeRelectureGuard() {
+        return state == S.COURSES && qteConnue > 0 && !refsInconnues;
     }
+
     @Action
-    public void FermetureSessionKO() {
-        state = "Caisse";
+    public void suspectOuInconnu() {
+        state = S.ATT_CAISSIER;
+        qteCaisse = qteConnue;
     }
 
-    public boolean FermetureSessionKOGuard() {
-        return state.equals("Validation");
+    public boolean suspectOuInconnuGuard() {
+        return state == S.COURSES && (qteConnue == 0 || refsInconnues);
     }
 
+    @Action
+    public void envoyerCaisseVersPaiement() {
+        state = S.ATT_PAIEMENT;
+        qteCaisse = qteConnue;
+    }
+
+    public boolean envoyerCaisseVersPaiementGuard() {
+        return state == S.COURSES && qteConnue > 0 && !refsInconnues;
+    }
+
+    @Action
+    public void relectureScanAttendu() {
+        state = S.RELECTURE;
+        qteScanee++;
+    }
+
+    public boolean relectureScanAttenduGuard() {
+        return state == S.RELECTURE && qteConnue != qteScanee  ;
+    }
+
+    @Action
+    public void relectureEchec() {
+        sessionOuverte = false;
+        state = S.ATTENTE;
+        qteConnue = 0;
+        refsInconnues = false;
+        qteCaisse = 0;
+        qteScanee = 0;
+    }
+
+    public boolean relectureEchecGuard() {
+        return state == S.RELECTURE;
+    }
+
+    @Action
+    public void relectureOkTerminee() {
+        state = S.ATT_PAIEMENT;
+        qteCaisse = qteConnue;
+    }
+
+    public boolean relectureOkTermineeGuard() {
+        return state == S.RELECTURE && qteScanee == qteConnue ;
+    }
+
+    @Action
+    public void ouvrirSessionOk() {
+        sessionOuverte = true;
+        state = S.SESSION_CAISSIER;
+    }
+
+    public boolean ouvrirSessionOkGuard() {
+        return !sessionOuverte && (state == S.ATT_CAISSIER || state == S.ATT_PAIEMENT);
+    }
+
+    @Action
+    public void ouvrirSessionKo() {
+        state = S.SESSION_CAISSIER;
+    }
+
+    public boolean ouvrirSessionKoGuard() {
+        return !sessionOuverte && (state == S.SESSION_CAISSIER );
+    }
+
+    @Action
+    public void caissierAjouteConnu() {
+        qteCaisse++;
+        state = S.SESSION_CAISSIER;
+    }
+
+    public boolean caissierAjouteConnuGuard() {
+        return state == S.SESSION_CAISSIER && sessionOuverte;
+    }
+
+    @Action
+    public void caissierRetireConnuOk() {
+        if (qteCaisse > 0) qteCaisse--;
+        state = S.SESSION_CAISSIER;
+    }
+
+    public boolean caissierRetireConnuOkGuard() {
+        return state == S.SESSION_CAISSIER && sessionOuverte && qteCaisse > 0;
+    }
+
+    @Action
+    public void caissierRetireConnuKo() {
+        state = S.SESSION_CAISSIER;
+    }
+
+    public boolean caissierRetireConnuKoGuard() {
+        return state == S.SESSION_CAISSIER && sessionOuverte && qteCaisse == 0;
+    }
+
+    @Action
+    public void fermerSessionOkVersPaiement() {
+        sessionOuverte = false;
+        state = S.ATT_PAIEMENT;
+    }
+
+    public boolean fermerSessionOkVersPaiementGuard() {
+        return state == S.SESSION_CAISSIER && sessionOuverte && qteCaisse > 0;
+    }
+
+    @Action
+    public void fermerSuspect() {
+        sessionOuverte = false;
+        state = S.ATTENTE;
+        qteConnue = 0;
+        refsInconnues = false;
+        qteCaisse = 0;
+        qteScanee = 0;
+    }
+
+    public boolean fermerSuspectGuard() {
+        return state == S.SESSION_CAISSIER && sessionOuverte && qteCaisse == 0;
+    }
+
+    @Action
+    public void fermerSessionKo() {
+        state = S.ATT_CAISSIER;
+    }
+
+    public boolean fermerSessionKoGuard() {
+        return state == S.ATT_CAISSIER;
+    }
+
+    @Action
+    public void payerOk() {
+        state = S.FIN;
+    }
+
+    public boolean payerOkGuard() {
+        return state == S.ATT_PAIEMENT && qteCaisse > 0;
+    }
+
+    @Action
+    public void payerKo() {
+        state = S.ATT_PAIEMENT;
+    }
+
+    public boolean payerKoGuard() {
+        return state == S.ATT_PAIEMENT && qteCaisse > 0;
+    }
+
+    @Action
+    public void abandonner() {
+        sessionOuverte = false;
+        state = S.ATTENTE;
+        qteConnue = 0;
+        refsInconnues = false;
+        qteCaisse = 0;
+        qteScanee = 0;
+    }
+
+    public boolean abandonnerGuard() {
+        return state != S.FIN && !abandon;
+    }
+
+    @Action
+    public void terminer() {
+        sessionOuverte = false;
+        state = S.ATTENTE;
+        qteConnue = 0;
+        refsInconnues = false;
+        qteCaisse = 0;
+        qteScanee = 0;
+    }
+
+    public boolean terminerGuard() {
+        return state == S.FIN;
+    }
 }
