@@ -2,7 +2,8 @@ target/
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
-
+/src/test/java/scanette/ScanetteGeneratedTests.java
+target/graphScanette.dot
 ### IntelliJ IDEA ###
 .idea/modules.xml
 .idea/jarRepositories.xml
